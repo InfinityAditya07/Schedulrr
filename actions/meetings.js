@@ -2,7 +2,6 @@
 
 import { db } from "@/lib/prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { google } from "googleapis";
 
 export async function getUserMeetings(type = "upcoming") {
   const { userId } = auth();
@@ -75,6 +74,16 @@ export async function cancelMeeting(meetingId) {
   );
 
   const token = data[0]?.token;
+
+  // `googleapis` currently pulls in a legacy dependency that expects
+  // `buffer.SlowBuffer`, which recent Node releases no longer expose. Provide
+  // its equivalent before loading Google Calendar only when it is needed.
+  const buffer = await import("buffer");
+  if (!buffer.SlowBuffer) {
+    buffer.default.SlowBuffer = buffer.Buffer;
+  }
+
+  const { google } = await import("googleapis");
 
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: token });
